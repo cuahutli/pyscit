@@ -128,10 +128,11 @@ class Mail():
         serverSMTP.close()       
         return resultado
         
-if __name__== "__main__":
-	correo = Mail()
-	print (correo.enviar(receptores = ['cm.ulloa@gruposcit.com'], mensaje='Hecho, lo hemos enviado desde python', asunto='Lo hemos enviado con un script en python'))
-    	
+""" if __name__== "__main__":
+    correo = Mail()
+    print (correo.enviar(receptores = ['cm.ulloa@gruposcit.com'], mensaje='Hecho, lo hemos enviado desde python', asunto='Lo hemos enviado con un script en python'))
+    print (correo.enviar(receptores = ['cm.ulloa@gruposcit.com'], mensaje='Hecho, lo hemos enviado desde python', asunto='Lo hemos enviado con un script en python', adjuntos=['prueba.xlsx']))
+ """    	
 
 
         
