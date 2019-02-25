@@ -2,13 +2,14 @@
 # -*- coding: utf-8 -*-
 
 '''
-Created by: Cuahutli Miguel Ulloa Robles
+I.S.C. Cuahutli Miguel Ulloa Robles
 '''
 import collections
 
 import xlsxwriter
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
+from collections import OrderedDict
 
 class Excel:
     
@@ -20,10 +21,11 @@ class Excel:
     ERR_ESTRENG     = 'La definición de cada renglón de los datos se debe hacer en un list (hoja: "{0}")'
     ERR_HOJAS       = 'El Libro que usted intenta analizar no tiene Hojas'
     
-    EST_ENCABEZADO  = {'bold': True, 'valign':'vcenter', 'border':1, 'bg_color':'#C6EFCE', 'font_color':'#006100'}
-    EST_GENERAL     = {'border':1, 'bg_color':'#F2DCDB'}
-    EST_NUMERO      = {'border':1, 'bg_color':'#F2DCDB', 'num_format':'#,##0.00'}
-    EST_FECHA       = {'border':1, 'bg_color':'#F2DCDB', 'num_format':'dd/mm/yyyy'}
+    EST_ENCABEZADO  = {'bold': True, 'valign':'vcenter', 'border':1, 'bg_color':'#C6EFCE', 'font_color':'#006100', 'font_size':9}
+    EST_GENERAL     = {'border':1, 'font_size':9}
+    EST_NUMERO      = {'border':1,  'num_format':'#,##0.00', 'font_size':9}
+    EST_SUMATORIAS  = {'border': 0, 'num_format': '#,##0.00','font_color':'#e31a1a', 'bold':True, 'bottom':3, 'font_size':9 }
+    EST_FECHA       = {'border':1,  'num_format':'dd/mm/yyyy', 'font_size':9}
     
     def __init__(self, ruta_libro=None):
         if ruta_libro is None:
@@ -34,15 +36,17 @@ class Excel:
         self._ENCABEZADO = self._libro.add_format(Excel.EST_ENCABEZADO)
         self._GENERAL = self._libro.add_format(Excel.EST_GENERAL)
         self._NUMERO = self._libro.add_format(Excel.EST_NUMERO)
+        self._SUMATORIAS = self._libro.add_format(Excel.EST_SUMATORIAS)
         self._FECHA = self._libro.add_format(Excel.EST_FECHA)
 
     #se agregó header y footer como parámetro para poderle indicar un header y footer por default
-    def agregarHoja(self, nombre=None, encabezados=[], datos=[], header=["&C&F - &A"], footer="&CPagina &P de &N" , horizontal = False, tam_hoja= 1):
+    def agregarHoja(self, nombre=None, encabezados=[], datos=[], header=["&C&F - &A"], footer="&CPagina &P de &N" , horizontal = False, tam_hoja= 1,  margen = 0.7, autofiltrar= True ):
         assert isinstance(nombre, str)
         if self._cerrado:
             raise Exception(Excel.ERR_CERRADO)
         nombre = 'Hoja' + str(len(self._libro.worksheets()) + 1) if nombre is None or nombre == '' else nombre
         hoja = self._libro.add_worksheet(nombre)
+        hoja.set_margins(margen, margen, 0.75, 0.75)
         if datos:
             c = 0
             r = 0
@@ -54,22 +58,23 @@ class Excel:
             for ren in range(len(datos)):
                 aux.append([0] * len(datos[r]))
                 c = 0
-                for d in datos[r]:
+                if type(datos) == collections.OrderedDict:
+                    data = datos[r].values()
+                else:
+                    data = datos[r]
+                for d in data:
                     estilo = None
                     if d == None:
                         estilo = self._GENERAL
-                    if type(d) in (str, unicode):
+                    if type(d) in (str,):
                         estilo = self._GENERAL
-                        #print d.decode('utf-8')
-                        d = d.decode('utf-8')
-                    if type(d) == date:
+                    if type(d) in (datetime, datetime.date, date):
                         estilo = self._FECHA
                     if type(d) in (Decimal, int, float):
                         estilo = self._NUMERO if '.' in str(d) else self._GENERAL
                     hoja.write(r + x, c, d, estilo)
                     ## lista auxiliar para calcular longitud columnas
-                    #print d, type(d)
-                    aux[ren][c] = len(str(d.encode('utf-8'))) * 1.2 if type(d) == unicode else len(str(d)) * 1.1
+                    aux[ren][c] = len(str(d)) * 1.1
                     c += 1
                 r += 1
             ## magia para las columnas ajustables
@@ -91,7 +96,9 @@ class Excel:
             hoja.set_landscape()
 
         hoja.repeat_rows(0) ## repite la primer fila del libro para imprimir
-        hoja.autofilter(0, 0, r - 1, c - 1)
+        if autofiltrar:
+            hoja.autofilter(0, 0, r - 1, c - 1)
+
         hoja.freeze_panes(1, 0)
 
     def modificaMargenes(self, hoja=None, izquierdo=0.7, derecho=0.7, arriba=0.75, abajo=0.75):
@@ -103,11 +110,11 @@ class Excel:
 
 
     ## se agregó header y footer como parámetros
-    def escribirLibro(self, contenido={}, k_encabezados='encabezados', k_datos='datos', header= ['&C&F - &A'], footer='&CPagina &P de &N', horizontal = False, tam_hoja= 1):
-        print "Generando Libro Excel..."
+    def escribirLibro(self, contenido={}, k_encabezados='encabezados', k_datos='datos', header= ['&C&F - &A'], footer='&CPagina &P de &N', horizontal = False, tam_hoja= 1, margen = 0.7, autofiltrar= True):
+        print ("Generando Libro Excel...")
         self.comprobarEstructura(contenido, k_encabezados, k_datos)
         for hoja in contenido.keys():
-            self.agregarHoja(hoja, contenido[hoja][k_encabezados], contenido[hoja][k_datos], header, footer, horizontal,tam_hoja)
+            self.agregarHoja(hoja, contenido[hoja][k_encabezados], contenido[hoja][k_datos], header, footer, horizontal,tam_hoja, margen, autofiltrar)
     
     def comprobarEstructura(self, contenido, k_encabezados, k_datos):
         for hoja in contenido.keys():
@@ -120,18 +127,25 @@ class Excel:
                 raise Exception(Excel.ERR_ESTDATO.format(hoja))
             else:
                 for ren in range(len(contenido[hoja][k_datos])):
-                    if not isinstance(contenido[hoja][k_datos][ren], list):
+                    if not type(contenido[hoja][k_datos][ren]) in (collections.OrderedDict, list):
                         raise Exception(Excel.ERR_ESTRENG.format(hoja))
     
     def obtenerHojas(self):
         if not self._libro.worksheets():
-            print Excel.ERR_HOJAS
+            print (Excel.ERR_HOJAS)
             return Excel.ERR_HOJAS
         hojas= collections.OrderedDict()
         for worksheet in self._libro.worksheets():
             hojas[worksheet.get_name()]=worksheet
-        #print hojas, isinstance(hojas, collections.OrderedDict)
+        #print (hojas, isinstance(hojas, collections.OrderedDict))
         return hojas
+
+    def modificaHeaderLibro(self, header):
+        hojas = self.obtenerHojas()
+        assert isinstance(hojas, collections.OrderedDict)
+        for hoja in hojas:
+            sheet = hojas[hoja]
+            sheet.set_header(header)
 
     def modificaHeader(self, hoja, header):
         hojas = self.obtenerHojas()
@@ -139,6 +153,13 @@ class Excel:
         if hoja in hojas.keys():
             sheet = hojas[hoja]
             sheet.set_header("&Cheader si, soy header")
+
+    def modificaFooterLibro(self, footer):
+        hojas = self.obtenerHojas()
+        assert isinstance(hojas, collections.OrderedDict)
+        for hoja in hojas:
+            sheet = hojas[hoja]
+            sheet.set_footer(footer)
 
     def modificaFooter(self, hoja, footer):
         hojas = self.obtenerHojas()
@@ -153,28 +174,45 @@ class Excel:
         
 if __name__ == '__main__':
     e = Excel('prueba.xlsx')
-    contenido = {
-        '1': {
-            'head': ['enc1.3'],
-            'data': [
-                ['uno','dos',3],
-                ['cuatro',1232132.454,'seis'],
-                ['...',date(2014,12,31), date(2000,1,1)]
-            ]
-        },
-        'hoja_prueba2': {
-            'head': ['enc2.1', 'enc2.2', 'enc2.3'],
-            'data': [
-                ['uno','dos',3],
-                ['cuatro',1232132.454,'seis'],
-                ['...',date(2014,12,31), date(2000,1,1)]
-            ]
-        }
+    contenido = OrderedDict()
+    contenido['1'] = {
+        'head': ['enc1.3'],
+        'data': [
+            ['uno','dos',3],
+            ['cuatro',1232132.454,'seis'],
+            ['...',date(2014,12,31), date(2000,1,1)]
+        ]
     }
+    contenido['hoja_prueba2'] = {
+        'head': ['enc2.1', 'enc2.2', 'enc2.3'],
+        'data': [
+            ['uno','dos',3],
+            ['cuatro',1232132.454,'seis'],
+            ['...',date(2014,12,31), date(2000,1,1)]
+        ]
+    }
+    # contenido = {
+    #     '1': {
+    #         'head': ['enc1.3'],
+    #         'data': [
+    #             ['uno','dos',3],
+    #             ['cuatro',1232132.454,'seis'],
+    #             ['...',date(2014,12,31), date(2000,1,1)]
+    #         ]
+    #     },
+    #     'hoja_prueba2': {
+    #         'head': ['enc2.1', 'enc2.2', 'enc2.3'],
+    #         'data': [
+    #             ['uno','dos',3],
+    #             ['cuatro',1232132.454,'seis'],
+    #             ['...',date(2014,12,31), date(2000,1,1)]
+    #         ]
+    #     }
+    # }
     try:
         e.escribirLibro(contenido, 'head', 'data')
-        e.agregarHoja('10', ['COL1', 'COL2'], [[1, 2], [3, 4]], "&LFunciona cambiandolo", "yeah vamos!!", True,5)
-        e.obtenerHojas()
+        # e.agregarHoja('10', ['COL1', 'COL2'], [[1, 2], [3, 4]], "&LFunciona cambiandolo", "yeah vamos!!", True,5)
+        # e.obtenerHojas()
     except Exception as ex:
-        print 'Ha ocurrido un error durante la creación del libro:\n' + str(ex)
+        print ('Ha ocurrido un error durante la creación del libro:\n' + str(ex))
     e.cerrarLibro()
