@@ -130,7 +130,7 @@ class Mail():
         
 if __name__== "__main__":
 	correo = Mail()
-	print (correo.enviar(receptores = ['cm.ulloa@gruposcit'], mensaje='Hecho, lo hemos enviado desde python', asunto='Lo hemos enviado con un script en python'))
+	print (correo.enviar(receptores = ['cm.ulloa@gruposcit.com'], mensaje='Hecho, lo hemos enviado desde python', asunto='Lo hemos enviado con un script en python'))
     	
 
 
